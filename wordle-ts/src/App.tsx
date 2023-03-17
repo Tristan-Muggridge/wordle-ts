@@ -45,13 +45,14 @@ function App() {
 	const maxTurns = 5;
 	const wordLength = 5;
 
-	const [target, setTarget] = useState("words")
+	const [target, setTarget] = useState("light")
 	const [attempts, setAttempts] = useState<Attempt[]>(new Array(wordLength).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None)))))
 	const [attempt, setAttempt] = useState("");
 	const [attemptQty, setAttemptQty] = useState(0);
 	const attemptInput = useRef<HTMLInputElement>(null);
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
+	const [validWord, setValidWord] = useState<boolean>(true);
 
 	useEffect(()=> {
 		const output: { [key: string]: number } = {};
@@ -67,6 +68,7 @@ function App() {
 	const handleKeydown = (e: ChangeEvent<HTMLInputElement>) => {
 		const {target: {value: currentVal}} = e
 		if (currentVal.length <= wordLength) setAttempt(currentVal);
+		if (validWord == false) setValidWord(true);
 	}
 
 	const analyseAttempt = (attempt: string) => {    
@@ -89,7 +91,10 @@ function App() {
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		
-		if (await isValidWord(attempt) == false) return;
+		if (await isValidWord(attempt) == false) {
+			setValidWord(false)
+			return;
+		}
 
 		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) setGameState(GameState.Victory)
 		else if (attemptQty+1 == maxTurns) setGameState(GameState.Defeat);
@@ -99,6 +104,7 @@ function App() {
 
 		setAttempt("");
 		setAttemptQty(attemptQty+1);
+		setValidWord(true);
 	}
 
 	return (
@@ -122,13 +128,15 @@ function App() {
 				<label htmlFor="attempt" className=''>Attempt:</label>
 				
 				<input 
-					className={`mx-2 rounded-lg p-1 outline outline-1 ${ attempt.length < wordLength ? 'outline-red-400' : 'outline-green-400' }`}
+					className={`mx-2 rounded-lg p-1 outline outline-1 ${ attempt.length < wordLength || validWord == false ? 'outline-red-400' : 'outline-green-400' }`}
 					type="text" 
 					id="attempt" 
 					onChange={handleKeydown} 
 					value={attempt} 
 					ref={attemptInput} />
 			</form>
+
+			{!validWord && <h3 className='my-5 text-red-400'> That's not a real word! </h3>}
 			</>
 			:
 			<>
