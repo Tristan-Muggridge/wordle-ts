@@ -36,10 +36,9 @@ class Attempt {
 	}
 }
 
-
-
 function App() {
 	const attemptInput = useRef<HTMLInputElement>(null);
+	const restartButton = useRef<HTMLButtonElement>(null);
 
 	const [maxTurns, setMaxTurns] = useState(5)
 	const [wordLength, setWordLength] = useState(5)
@@ -50,10 +49,12 @@ function App() {
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
 	const [validWord, setValidWord] = useState<boolean>(true);
+	console.debug(target)
 
 	const isValidWord = async (word: string) => {
-		const request = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
-		return request.status == 404 ? false : true;
+		const request = await fetch(`https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=caa38334-61dd-4f3a-a581-27a2175781d9`)
+		const json = await request.json()		
+		return json["0"]["meta"] == undefined ? false : true;
 	}
 
 	const getRandomWord = async (wordLength: number) => {
@@ -74,11 +75,11 @@ function App() {
 	const loadStyle = (status: CharacterStatus) => {
 		switch (status) {
 			case CharacterStatus.Correct: 
-				return 'bg-green-400 outline-green-100';
+				return 'bg-green-500 outline-green-100 text-green-100';
 			case CharacterStatus.Incorrect: 
-				return 'bg-red-500 outline-red-100';
+				return 'bg-red-500 outline-red-100 text-red-100';
 			case CharacterStatus.Close: 
-				return 'bg-orange-400 outline-orange-100';
+				return 'bg-orange-500 outline-orange-100 text-orange-100';
 			default: 
 				return 'bg-slate-700 outline-slate-500';
 		}
@@ -86,13 +87,16 @@ function App() {
 
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		
-		if ( attempt.toLocaleLowerCase() != target.toLocaleLowerCase() || await isValidWord(attempt) == false) {
+
+		if ( await isValidWord(attempt) == false) {
 			setValidWord(false)
 			return;
 		}
 
-		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) setGameState(GameState.Victory)
+		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) {
+			setGameState(GameState.Victory);
+			restartButton.current?.focus();
+		}
 		else if (turn+1 == maxTurns) setGameState(GameState.Defeat);
 
 		const updated = attempts;
@@ -104,9 +108,10 @@ function App() {
 	}
 
 	const resetGame = async () => {
-		console.debug("resetting game")
+		setTurn(0);
 		setTarget(await getRandomWord(wordLength))
 		setGameState(GameState['In Progress'])
+		attemptInput.current?.focus();
 	}
 
 	useEffect(()=> {
@@ -114,6 +119,7 @@ function App() {
 		target.split('').forEach((char: string, index: number) => output[char] = output[char] == undefined ? [index] : [...output[char], index]);
 		setTargetMap({...output})
 		setAttempts([...new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))])
+		attemptInput.current?.focus();
 	}, [target])
 
 	useEffect( () => {
@@ -123,10 +129,37 @@ function App() {
 	}, [maxTurns])
 
 	useEffect( () => {
-		const setWordInitial = async () => setTarget(await getRandomWord(wordLength));
+		const setWordInitial = async () => {
+			let word = await getRandomWord(wordLength);
+			let legitWord = await isValidWord(word);
+
+			while (!legitWord) {
+				word = await getRandomWord(wordLength);
+				legitWord = await isValidWord(word);
+			}
+			
+			setTarget(word);
+		}
+
 		setWordInitial()
 		new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
-		attemptInput.current?.focus();
+	}, [wordLength])
+
+	useEffect( () => {
+		const setWordInitial = async () => {
+			let word = await getRandomWord(wordLength);
+			let legitWord = await isValidWord(word);
+
+			while (!legitWord) {
+				word = await getRandomWord(wordLength);
+				legitWord = await isValidWord(word);
+			}
+			
+			setTarget(word);
+		}
+
+		setWordInitial()
+		new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
 	}, [])
 
 	return (
@@ -176,7 +209,7 @@ function App() {
 			</>
 			}
 
-			{ gameState != GameState['In Progress'] && <button onClick={resetGame} className={'m-10'}> Play again </button>}
+			{ gameState != GameState['In Progress'] && <form onSubmit={e=> {e.preventDefault(); resetGame}}> <button onClick={resetGame} tabIndex={0} className={'m-10'} ref={restartButton}> Play again </button> </form>}
 		</div>
   	)
 }
