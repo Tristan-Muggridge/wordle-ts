@@ -98,14 +98,16 @@ function App() {
 			return;
 		}
 
-		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) {
+		const attemptLower = attempt.toLocaleLowerCase()
+
+		if (attemptLower == target.toLocaleLowerCase()) {
 			setGameState(GameState.Victory);
 			restartButton.current?.focus();
 		}
 		else if (turn+1 == maxTurns) setGameState(GameState.Defeat);
 
 		const updated = attempts;
-		updated[turn] = new Attempt(analyseAttempt(attempt))
+		updated[turn] = new Attempt(analyseAttempt(attemptLower))
 
 		setAttempt("");
 		setTurn(turn+1);
@@ -169,8 +171,8 @@ function App() {
 	}, [])
 
 	return (
-		<div>
-			<form className="grid grid-cols-2 place-items-center gap-2">
+		<div className='flex flex-col'>
+			<form className="grid grid-cols-2 place-items-center gap-2 ">
 					<label htmlFor="turns">Turns: </label>
 					<input 
 						type="number" 
@@ -190,12 +192,12 @@ function App() {
 						className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !wordLength ? 'outline-red-400' : '' }`} />
 			</form>
 
-			{ target ? <ul className={`grid gap-2 my-10 w-auto`} style={{gridTemplateColumns: `repeat(${wordLength}, 1fr)`}}> 
+			{ target ? <ul className={`grid gap-2 my-10 mx-auto`} style={{gridTemplateColumns: `repeat(${wordLength}, 1fr)`}}> 
 			{ 
 				attempts.map( attempt => {
-					return attempt.letters.map( (letter, index: number) => {
-						return <ol key={crypto.randomUUID()} className={`p-2 rounded-lg outline outline-2 ${ loadStyle(letter.status) }`}>
-							<pre> {letter.value ? letter.value : ''} </pre>
+					return attempt.letters.map( letter => {
+						return <ol key={crypto.randomUUID()} className={`${ loadStyle(letter.status) } font-medium text-center p-2 w-12 h-10 rounded-lg outline outline-2`}>
+							{letter.value ? letter.value : ''}
 						</ol>
 					})
 				})
@@ -218,13 +220,13 @@ function App() {
 				{!validWord && <h3 className='my-5 text-red-400'> That's not a real word! </h3>}
 			</>
 			:
-			<>
-				<h1>{gameState == GameState.Victory ? 'You won!' : 'Better luck next time!'}</h1>
+			<div className='text-center'>
+				<h1 >{gameState == GameState.Victory ? 'You won!' : 'Better luck next time!'}</h1>
 				{gameState == GameState.Defeat && <h2> The correct answer was: {target} </h2>}
-			</>
+				<form className='m-8' onSubmit={e=> {e.preventDefault(); resetGame}}> <button onClick={resetGame} tabIndex={0} ref={restartButton}> Play again </button> </form>
+			</div>
 			}
 
-			{ gameState != GameState['In Progress'] && <form onSubmit={e=> {e.preventDefault(); resetGame}}> <button onClick={resetGame} tabIndex={0} className={'m-10'} ref={restartButton}> Play again </button> </form>}
 		</div>
   	)
 }
