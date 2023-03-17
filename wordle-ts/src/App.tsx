@@ -49,7 +49,6 @@ function App() {
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
 	const [validWord, setValidWord] = useState<boolean>(true);
-	console.debug(target)
 
 	const isValidWord = async (word: string) => {
 		const request = await fetch(`https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=caa38334-61dd-4f3a-a581-27a2175781d9`)
