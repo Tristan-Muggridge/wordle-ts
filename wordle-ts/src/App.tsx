@@ -27,8 +27,8 @@ class Character {
 class Attempt {
 	letters: Character[];
 
-	constructor(attempt: string) {		
-		this.letters = attempt.split("").map( char => new Character(char, CharacterStatus.None))
+	constructor(attempt: Character[]) {		
+		this.letters = attempt;
 	}
 }
 
@@ -36,11 +36,13 @@ class Attempt {
 
 function App() {
 	const [target, setTarget] = useState("words")
-	const [attempts, setAttempts] = useState<Attempt[]>(new Array(5).fill(new Attempt("     ")))
+	const [attempts, setAttempts] = useState<Attempt[]>(new Array(5).fill(new Attempt(new Array(5).fill(new Character('', CharacterStatus.None)))))
 	const [attempt, setAttempt] = useState("");
 	const [attemptQty, setAttemptQty] = useState(0);
 	const attemptInput = useRef<HTMLInputElement>(null);
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
+
+	console.debug(attempts)
 
 	useEffect(()=> {
 		const output: { [key: string]: number } = {};
@@ -53,15 +55,31 @@ function App() {
 		if (currentVal.length <= 5) setAttempt(currentVal);
 	}
 
-	const analyseAttempt = () => {    
-		console.debug(attempt.split('').map((char, index: number) => targetMap[char] >= 0 ? (targetMap[char] == index ? index : targetMap[char] ) : null  ))
+	const analyseAttempt = (attempt: string) => {    
+		return( attempt.split('').map((char, index: number) => new Character(char, targetMap[char] >= 0 ? (targetMap[char] == index ? CharacterStatus.Correct : CharacterStatus.Close ) : CharacterStatus.Incorrect  )))
+	}
+
+	const loadStyle = (status: CharacterStatus) => {
+		switch (status) {
+			case CharacterStatus.Correct: 
+				return 'bg-green-400 outline-green-100';
+			case CharacterStatus.Incorrect: 
+				return 'bg-red-500 outline-red-100';
+			case CharacterStatus.Close: 
+				return 'bg-orange-400 outline-orange-100';
+			default: 
+				return '';
+		}
 	}
 
 	const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		console.debug("submitted: ", attempt);
 		
-		analyseAttempt();
+		console.debug()
+
+		const updated = attempts;
+		updated[attemptQty] = new Attempt(analyseAttempt(attempt))
 
 		setAttempt("");
 		setAttemptQty(attemptQty+1);
@@ -75,7 +93,9 @@ function App() {
 			{ 
 				attempts.map( attempt => {
 					return attempt.letters.map( letter => {
-						return <ol className='p-2 bg-slate-700 rounded-lg outline outline-slate-500 outline-2'><pre> {letter.value ? letter.value : ''} </pre></ol>
+						return <ol className={`p-2 bg-slate-700 rounded-lg outline outline-slate-500 outline-2  ${ loadStyle(letter.status) }`}>
+							<pre> {letter.value ? letter.value : ''} </pre>
+						</ol>
 					})
 				})
 			}
