@@ -39,42 +39,17 @@ class Attempt {
 
 
 function App() {
-	console.debug('loading')
+	const attemptInput = useRef<HTMLInputElement>(null);
+
 	const [maxTurns, setMaxTurns] = useState(5)
 	const [wordLength, setWordLength] = useState(5)
-
 	const [target, setTarget] = useState("")
 	const [attempts, setAttempts] = useState<Attempt[]>([])
 	const [attempt, setAttempt] = useState("");
 	const [turn, setTurn] = useState(0);
-	const attemptInput = useRef<HTMLInputElement>(null);
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
 	const [validWord, setValidWord] = useState<boolean>(true);
-
-	useEffect(()=> {
-		const output: IWordMap = {};
-		target.split('').forEach((char: string, index: number) => output[char] = output[char] == undefined ? [index] : [...output[char], index]);
-		setTargetMap({...output})
-		console.debug("target:", target)
-		setAttempts([...new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))])
-	}, [target])
-
-	useEffect( () => {
-		const newAttempts = new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
-		
-		for (let attempt in attempts) if (attempts[attempt]) newAttempts[attempt] = attempts[attempt];
-		
-		setAttempts([...newAttempts])
-	}, [maxTurns])
-
-	useEffect( () => {
-		// const getWord = async () => setTarget(await getRandomWord(wordLength));
-		// getWord();
-
-		setTarget("sinus")
-		new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
-	}, [])
 
 	const isValidWord = async (word: string) => {
 		const request = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
@@ -112,7 +87,7 @@ function App() {
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		
-		if (await isValidWord(attempt) == false) {
+		if ( attempt.toLocaleLowerCase() != target.toLocaleLowerCase() || await isValidWord(attempt) == false) {
 			setValidWord(false)
 			return;
 		}
@@ -133,6 +108,26 @@ function App() {
 		setTarget(await getRandomWord(wordLength))
 		setGameState(GameState['In Progress'])
 	}
+
+	useEffect(()=> {
+		const output: IWordMap = {};
+		target.split('').forEach((char: string, index: number) => output[char] = output[char] == undefined ? [index] : [...output[char], index]);
+		setTargetMap({...output})
+		setAttempts([...new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))])
+	}, [target])
+
+	useEffect( () => {
+		const newAttempts = new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
+		for (let attempt in attempts) if (attempts[attempt]) newAttempts[attempt] = attempts[attempt];
+		setAttempts([...newAttempts].slice(0, maxTurns))
+	}, [maxTurns])
+
+	useEffect( () => {
+		const setWordInitial = async () => setTarget(await getRandomWord(wordLength));
+		setWordInitial()
+		new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
+		attemptInput.current?.focus();
+	}, [])
 
 	return (
 		<div className="App">
@@ -181,7 +176,7 @@ function App() {
 			</>
 			}
 
-			{ gameState != GameState['In Progress'] && <button onClick={resetGame}> Play again </button>}
+			{ gameState != GameState['In Progress'] && <button onClick={resetGame} className={'m-10'}> Play again </button>}
 		</div>
   	)
 }
