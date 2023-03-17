@@ -1,6 +1,4 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 
 enum CharacterStatus {
@@ -17,7 +15,7 @@ enum GameState {
 }
 
 interface IWordMap {
-	[key: string]: number
+	[key: string]: number[]
 }
 
 class Character {
@@ -41,28 +39,26 @@ class Attempt {
 
 
 function App() {
-
-	const maxTurns = 5;
-	const wordLength = 5;
-
-	const [target, setTarget] = useState("light")
-	const [attempts, setAttempts] = useState<Attempt[]>(new Array(wordLength).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None)))))
-	const [attempt, setAttempt] = useState("");
-	const [attemptQty, setAttemptQty] = useState(0);
 	const attemptInput = useRef<HTMLInputElement>(null);
+
+	const [maxTurns, setMaxTurns] = useState(5)
+	const [wordLength, setWordLength] = useState(5)
+	const [target, setTarget] = useState("")
+	const [attempts, setAttempts] = useState<Attempt[]>([])
+	const [attempt, setAttempt] = useState("");
+	const [turn, setTurn] = useState(0);
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
 	const [validWord, setValidWord] = useState<boolean>(true);
 
-	useEffect(()=> {
-		const output: { [key: string]: number } = {};
-		target.split('').forEach((char: string, index: number) => output[char] = index);
-		setTargetMap({...output})
-	}, [target])
-
 	const isValidWord = async (word: string) => {
 		const request = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
 		return request.status == 404 ? false : true;
+	}
+
+	const getRandomWord = async (wordLength: number) => {
+		const request = await (await fetch(`https://random-word-api.herokuapp.com/word?length=${wordLength}`)).json()
+		return request[0];
 	}
  
 	const handleKeydown = (e: ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +68,7 @@ function App() {
 	}
 
 	const analyseAttempt = (attempt: string) => {    
-		return( attempt.split('').map((char, index: number) => new Character(char, targetMap[char] >= 0 ? (targetMap[char] == index ? CharacterStatus.Correct : CharacterStatus.Close ) : CharacterStatus.Incorrect  )))
+		return( attempt.split('').map((char, index: number) => new Character(char, targetMap[char] == undefined ? CharacterStatus.Incorrect : (targetMap[char].some(num => num==index) == true ? CharacterStatus.Correct : CharacterStatus.Close ) )))
 	}
 
 	const loadStyle = (status: CharacterStatus) => {
@@ -84,47 +80,82 @@ function App() {
 			case CharacterStatus.Close: 
 				return 'bg-orange-400 outline-orange-100';
 			default: 
-				return '';
+				return 'bg-slate-700 outline-slate-500';
 		}
 	}
 
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		
-		if (await isValidWord(attempt) == false) {
+		if ( attempt.toLocaleLowerCase() != target.toLocaleLowerCase() || await isValidWord(attempt) == false) {
 			setValidWord(false)
 			return;
 		}
 
 		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) setGameState(GameState.Victory)
-		else if (attemptQty+1 == maxTurns) setGameState(GameState.Defeat);
+		else if (turn+1 == maxTurns) setGameState(GameState.Defeat);
 
 		const updated = attempts;
-		updated[attemptQty] = new Attempt(analyseAttempt(attempt))
+		updated[turn] = new Attempt(analyseAttempt(attempt))
 
 		setAttempt("");
-		setAttemptQty(attemptQty+1);
+		setTurn(turn+1);
 		setValidWord(true);
 	}
+
+	const resetGame = async () => {
+		console.debug("resetting game")
+		setTarget(await getRandomWord(wordLength))
+		setGameState(GameState['In Progress'])
+	}
+
+	useEffect(()=> {
+		const output: IWordMap = {};
+		target.split('').forEach((char: string, index: number) => output[char] = output[char] == undefined ? [index] : [...output[char], index]);
+		setTargetMap({...output})
+		setAttempts([...new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))])
+	}, [target])
+
+	useEffect( () => {
+		const newAttempts = new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
+		for (let attempt in attempts) if (attempts[attempt]) newAttempts[attempt] = attempts[attempt];
+		setAttempts([...newAttempts].slice(0, maxTurns))
+	}, [maxTurns])
+
+	useEffect( () => {
+		const setWordInitial = async () => setTarget(await getRandomWord(wordLength));
+		setWordInitial()
+		new Array(maxTurns).fill(new Attempt(new Array(wordLength).fill(new Character('', CharacterStatus.None))))
+		attemptInput.current?.focus();
+	}, [])
 
 	return (
 		<div className="App">
 			
-			<ul className='grid grid-cols-5 gap-2 my-10'> 
+			<form>
+				<label htmlFor="turns">Turns: </label>
+				<input type="number" name="turns" id="turns" value={maxTurns} onChange={(e: ChangeEvent<HTMLInputElement>) => setMaxTurns(parseInt(e.target.value))} className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !maxTurns ? 'outline-red-400' : '' }`}/>
+
+				<label htmlFor="wordlength">Word Length: </label>
+				<input type="number" name="wordlength" id="wordlength" value={wordLength} onChange={(e: ChangeEvent<HTMLInputElement>) => {setWordLength( parseInt(e.target.value)); resetGame();}} className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !wordLength ? 'outline-red-400' : '' }`}/>
+
+			</form>
+
+			{ target ? <ul className={`grid gap-2 my-10 w-auto`} style={{gridTemplateColumns: `repeat(${wordLength}, 1fr)`}}> 
 			{ 
 				attempts.map( attempt => {
 					return attempt.letters.map( letter => {
-						return <ol key={crypto.randomUUID()} className={`p-2 bg-slate-700 rounded-lg outline outline-slate-500 outline-2  ${ loadStyle(letter.status) }`}>
+						return <ol key={crypto.randomUUID()} className={`p-2 rounded-lg outline outline-2 ${ loadStyle(letter.status) }`}>
 							<pre> {letter.value ? letter.value : ''} </pre>
 						</ol>
 					})
 				})
 			}
-			</ul>
+			</ul> : <h3 className=' text-center mx-auto m-36'> loading... </h3>}
 
 			{ gameState == GameState['In Progress'] ?  
 			<>
-			<form className='' onSubmit={(e)=> attempt.length == wordLength ? handleSubmit(e) : e.preventDefault()}>
+			<form className='mb-10' onSubmit={(e)=> attempt.length == wordLength ? handleSubmit(e) : e.preventDefault()}>
 				<label htmlFor="attempt" className=''>Attempt:</label>
 				
 				<input 
@@ -144,6 +175,8 @@ function App() {
 				{gameState == GameState.Defeat && <h2> The correct answer was: {target} </h2>}
 			</>
 			}
+
+			{ gameState != GameState['In Progress'] && <button onClick={resetGame} className={'m-10'}> Play again </button>}
 		</div>
   	)
 }
