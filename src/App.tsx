@@ -1,5 +1,4 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
-import './App.css'
 
 enum CharacterStatus {
 	Correct = "Correct",
@@ -49,6 +48,13 @@ function App() {
 	const [targetMap, setTargetMap] = useState<IWordMap>({});
 	const [gameState, setGameState] = useState<GameState>(GameState['In Progress'])
 	const [validWord, setValidWord] = useState<boolean>(true);
+
+	const handleSettingChange = (e: ChangeEvent<HTMLInputElement>, setState: any) => {		
+		let value = parseInt(e.target.value)
+		if (!value || value > 10 || value <= 1) return;
+		setState(value)
+		resetGame();
+	}
 
 	const isValidWord = async (word: string) => {
 		const request = await fetch(`https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=caa38334-61dd-4f3a-a581-27a2175781d9`)
@@ -114,6 +120,7 @@ function App() {
 	}
 
 	useEffect(()=> {
+		if (!target) return;
 		const output: IWordMap = {};
 		target.split('').forEach((char: string, index: number) => output[char] = output[char] == undefined ? [index] : [...output[char], index]);
 		setTargetMap({...output})
@@ -162,21 +169,31 @@ function App() {
 	}, [])
 
 	return (
-		<div className="App">
-			
-			<form>
-				<label htmlFor="turns">Turns: </label>
-				<input type="number" name="turns" id="turns" value={maxTurns} onChange={(e: ChangeEvent<HTMLInputElement>) => setMaxTurns(parseInt(e.target.value))} className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !maxTurns ? 'outline-red-400' : '' }`}/>
-
-				<label htmlFor="wordlength">Word Length: </label>
-				<input type="number" name="wordlength" id="wordlength" value={wordLength} onChange={(e: ChangeEvent<HTMLInputElement>) => {setWordLength( parseInt(e.target.value)); resetGame();}} className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !wordLength ? 'outline-red-400' : '' }`}/>
-
+		<div>
+			<form className="grid grid-cols-2 place-items-center gap-2">
+					<label htmlFor="turns">Turns: </label>
+					<input 
+						type="number" 
+						name="turns" 
+						id="turns" 
+						value={maxTurns} 
+						onChange={(e) => handleSettingChange(e, setMaxTurns)} 
+						className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !maxTurns ? 'outline-red-400' : '' }`} />
+					
+					<label htmlFor="wordlength">Word Length: </label>
+					<input 
+						type="number" 
+						name="wordlength" 
+						id="wordlength" 
+						value={wordLength} 
+						onChange={(e) => handleSettingChange(e, setWordLength)} 
+						className={`mx-2 rounded-lg p-1 outline outline-1 w-12 ${ !wordLength ? 'outline-red-400' : '' }`} />
 			</form>
 
 			{ target ? <ul className={`grid gap-2 my-10 w-auto`} style={{gridTemplateColumns: `repeat(${wordLength}, 1fr)`}}> 
 			{ 
 				attempts.map( attempt => {
-					return attempt.letters.map( letter => {
+					return attempt.letters.map( (letter, index: number) => {
 						return <ol key={crypto.randomUUID()} className={`p-2 rounded-lg outline outline-2 ${ loadStyle(letter.status) }`}>
 							<pre> {letter.value ? letter.value : ''} </pre>
 						</ol>
@@ -187,19 +204,18 @@ function App() {
 
 			{ gameState == GameState['In Progress'] ?  
 			<>
-			<form className='mb-10' onSubmit={(e)=> attempt.length == wordLength ? handleSubmit(e) : e.preventDefault()}>
-				<label htmlFor="attempt" className=''>Attempt:</label>
-				
-				<input 
-					className={`mx-2 rounded-lg p-1 outline outline-1 ${ attempt.length < wordLength || validWord == false ? 'outline-red-400' : 'outline-green-400' }`}
-					type="text" 
-					id="attempt" 
-					onChange={handleKeydown} 
-					value={attempt} 
-					ref={attemptInput} />
-			</form>
-
-			{!validWord && <h3 className='my-5 text-red-400'> That's not a real word! </h3>}
+				<form className='mb-10' onSubmit={(e)=> attempt.length == wordLength ? handleSubmit(e) : e.preventDefault()}>
+					<label htmlFor="attempt" className=''>Attempt:</label>
+					
+					<input 
+						className={`mx-2 rounded-lg p-1 outline outline-1 ${ attempt.length < wordLength || validWord == false ? 'outline-red-400' : 'outline-green-400' }`}
+						type="text" 
+						id="attempt" 
+						onChange={handleKeydown} 
+						value={attempt} 
+						ref={attemptInput} />
+				</form>
+				{!validWord && <h3 className='my-5 text-red-400'> That's not a real word! </h3>}
 			</>
 			:
 			<>
