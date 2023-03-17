@@ -59,6 +59,10 @@ function App() {
 		setTargetMap({...output})
 	}, [target])
 
+	const isValidWord = async (word: string) => {
+		const request = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+		return request.status == 404 ? false : true;
+	}
  
 	const handleKeydown = (e: ChangeEvent<HTMLInputElement>) => {
 		const {target: {value: currentVal}} = e
@@ -85,6 +89,7 @@ function App() {
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		
+		if (await isValidWord(attempt) == false) return;
 
 		if (attempt.toLocaleLowerCase() == target.toLocaleLowerCase()) setGameState(GameState.Victory)
 		else if (attemptQty+1 == maxTurns) setGameState(GameState.Defeat);
